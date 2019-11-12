@@ -1,20 +1,207 @@
 #include <iostream>
-#define MAX 100
+#include <fstream>	//for std::ofstream
+#include <random>	// for std::mt19937
+#include <ctime>	// for std::time
+#include <string>
+#include <sstream>
+#include <vector>
+
+#define MAXV 100		//numero maximo de vertices
+//Modifique os valores abaixo para obter um grafo necessario
+#define PERCENT 20		//chance de aparecer aresta. diminuir pra grid
+#define MIN_NIVEIS 1
+#define MAX_NIVEIS 10
+#define MIN_POR_NIVEL 5 // Nos/nivel. O 'volume' do grafo.
+#define MAX_POR_NIVEL 10
+
 using namespace std;
 
 typedef struct No
 {
   int chave;
-  int visita = 0;
+  bool visita = 0;
   int nivel = 0;
   struct No *next;
 } TipoNo;
+
+typedef struct aresta {
+    int y;
+    struct aresta* prox;
+}arst;
+
+typedef struct grafo {
+    aresta* arestas[MAXV + 1];		//informacao de adjacencia
+    std::string fragmts[MAXV];		//cada indice(vertice) irá conter uma string de DNA
+    int grau[MAXV + 1];			//grau de cada vertice
+    int nvertices;				//numero de vertices no grafo
+    int narestas;				//num de arestas no grafo
+    bool directed;				//A flag indica se o grafo deve ser interpretado como direcionado
+}grf;
 
 typedef struct Fila
 {
   TipoNo *inicio, *fim;
   int tamanho;
 } TipoFila;
+
+namespace MyRandom
+{
+    // Initialize mersenne twister with a random seed based on the clock (once at system startup)
+    std::mt19937 mersenne(static_cast<std::mt19937::result_type>(std::time(nullptr)));
+}
+
+void initiaze_graph(grf* g, bool directed) {
+    int i;
+
+    g->nvertices = 0;
+    g->narestas = 0;
+    g->directed = directed;
+
+    for (i = 0; i < MAXV; i++) g->grau[i] = 0;
+    for (i = 0; i < MAXV; i++) g->arestas[i] = nullptr;
+}
+
+void insert_arest(grafo * g, int x, int y, bool directed) {
+    aresta* p;
+    p = new aresta;
+
+    p->y = y;
+    p->prox = g->arestas[x];
+
+    g->arestas[x] = p;
+
+    g->grau[x]++;
+
+    if (directed == false)
+        insert_arest(g, y, x, true);
+    else
+        g->narestas++;
+}
+
+void inserir(No *cabeca, int novoVaor){
+    No *ant = cabeca->next;
+    No *pont = cabeca;
+    bool naLista=false;
+    while(ant!=cabeca){
+        if(ant->chave == novoVaor){
+            naLista = true;
+        }
+        ant=ant->next;
+        pont = pont->next;
+    }
+    if(naLista){
+        cout<<"Elemento "<<novoVaor<<" encontra-se na lista"<<endl;
+        return;
+    }
+    No *novoNo = new No();
+    if (novoNo!=nullptr){
+        novoNo->chave = novoVaor;
+        novoNo->next = cabeca;
+        pont->next = novoNo;
+    }
+}
+
+void printDireto(No *cabeca){
+    cout<<cabeca->chave<<"n"<<cabeca->nivel<<" :";
+    No *aux = cabeca->next;
+    while (aux!=cabeca){
+        cout<<aux->chave<<"n"<<aux->nivel<<" ->";
+        aux = aux->next;
+    }
+    cout<<endl;
+}
+
+//Somente Algumas coisas q são melhores para gerar numeros aleatorios do q rand()e srand()
+
+int getRandomNumber(int min, int max)
+{
+    std::uniform_int_distribution<> die(min, max); // we can create a distribution in any function that needs it
+    return die(MyRandom::mersenne); // and then generate a random number from our global generator
+}
+
+int geraDAG() {
+    int i, j, k, nos = 0;
+    std::ofstream outfg;
+    //O arquivo .gv pode ser graficamente exibido no site: webgraphviz.com
+    //O arquivo eh gravado em DOT: en.wikipedia.org/wiki/DOT_(graph_description_language)
+
+    outfg.open("C:/Users/lu_fe/Downloads/OneDrive/Materias/Estrutura dados/Trab/trab/graphVisu.txt");
+
+    int niveis = getRandomNumber(MIN_NIVEIS, MAX_NIVEIS);
+    outfg << "digraph {\n";
+    for (i = 0; i < niveis; i++) {
+        int nos_novos = getRandomNumber(MIN_POR_NIVEL, MAX_POR_NIVEL);
+
+        //Os laços indicam que para cada vertice "velho" e "novo"
+        //sera decidido se inserir uma aresta entre eles ou não. baseando no PERCENT
+        for (j = 0; j < nos; j++) {
+            for (k = 0; k < nos_novos; k++) {
+                if (getRandomNumber(0, 100) < PERCENT) {
+                    outfg << " " << j << " -> " << k + nos << " ;" << std::endl; //Uma aresta
+                }
+            }
+        }
+
+        nos += nos_novos;
+
+    }
+    outfg << "}\n";
+
+    outfg.close();
+
+    std::cout << "O seu grafo possui: " << nos << " nos! \n";
+    return nos;
+}
+
+No** iniciar_lista(int vertices){
+    No **lista= new No*[vertices];
+    for(int i=0;i<vertices;i++){
+        lista[i] = new No();
+        lista[i]->chave = i;
+        lista[i]->next = lista[i];
+    }
+    return lista;
+};
+
+No** ler_dot(std::ifstream &grafo, int vertices){
+    No **lista= new No*[vertices];
+
+    for(int i=0;i<vertices;i++){
+        lista[i] = new No();
+        lista[i]->chave = i;
+        lista[i]->next = lista[i];
+    }
+
+    grafo.open("C:/Users/lu_fe/Downloads/OneDrive/Materias/Estrutura dados/Trab/trab/graphVisu.txt");
+
+    if(!grafo)
+    {
+        cout<<"Não abriu"<<endl;
+        exit(1);
+    }
+
+    //2
+    vector<string> linhas;
+    string linha;
+
+    while(getline(grafo,linha))
+    {
+        linhas.push_back(linha);
+    }
+
+    for(int i=1; i<static_cast<int>(linhas.size()-1);i++){
+        stringstream tipo(linhas[i]);
+        string lixo;
+        char lixo2;
+        int x,y;
+        tipo >> x >> lixo >>y >>lixo2;
+        cout<<x<<" "<<y<<endl;
+        inserir(lista[x],y);
+    }
+
+    grafo.close();
+    return lista;
+};
 
 void IniciaFila(TipoFila *fila)
 {
@@ -61,96 +248,6 @@ int Desenfileira(TipoFila *fila)
   return v;
 }
 
-void busca(No *cabeca, No **ant, No **pont, int x){
-    *ant = cabeca; // ant agora aponta pra cabeça e isso se reflete fora da funçao
-    *pont = nullptr;
-    No *aux = cabeca->next;
-    while (aux!=cabeca){
-        if (aux->chave < x){
-            *ant = aux; // ant agora aponta pra aux e isso se reflete fora da funçao
-            aux = aux->next;
-        } else{
-            if(aux->chave==x){
-                *pont = aux;
-            }
-            aux = cabeca;
-        }
-    }
-}
-
-void inserir(No *cabeca, int novoVaor){
-    No *ant = cabeca->next;
-    No *pont = cabeca;
-    bool naLista=false;
-    while(ant!=cabeca){
-        if(ant->chave == novoVaor){
-            naLista = true;
-        }
-        ant=ant->next;
-        pont = pont->next;
-    }
-    if(naLista){
-        cout<<"Elemento "<<novoVaor<<" encontra-se na lista"<<endl;
-        return;
-    }
-    No *novoNo = new No();
-    if (novoNo!=nullptr){
-        novoNo->chave = novoVaor;
-        novoNo->next = cabeca;
-        pont->next = novoNo;
-    }
-}
-
-void printDireto(No *cabeca){
-    cout<<cabeca->chave<<" ,n"<<cabeca->nivel<<" ";
-    No *aux = cabeca->next;
-    while (aux!=cabeca){
-        cout<<aux->chave<<" ,n"<<aux->nivel<<" ";
-        aux = aux->next;
-    }
-    cout<<endl;
-}
-
-void remover(No *cabeca, int valor){
-    No *ant=nullptr, *pont=nullptr;
-    busca(cabeca, &ant, &pont, valor); // ATENCAO:  &ant, &pont
-    if (pont!=nullptr){ // o elemento deve estar na lista
-        ant->next = pont->next;
-        delete pont; // IMPORTANTE NAO ESQUECER
-    } else {
-        cout<<"Elemento "<<valor<<" não se encontra na lista"<<endl;
-    }
-}
-
-/*void iniciar(int &n,No **lista){
-    cout<<"n"<<endl;
-    cin>>n;
-    lista= new No*[n];
-
-    for(int i=0;i<n;i++){
-        lista[i] = new No();
-        lista[i]->chave = i;
-        lista[i]->next = lista[i];
-    }
-    int ent1, ent2;
-    cout<<"pra sair, insira 0 em V1"<<endl;
-    while(1){
-        cout<<"Vertice 1 e 2"<<endl;
-        cin>>ent1>>ent2;
-        if(ent1 == 0){
-            break;
-        }
-        inserir(lista[ent1-1],ent2);
-        inserir(lista[ent2-1],ent1);
-    }
-    cout<<endl<<"Grafo armazenado em lista : "<<endl;
-    for(int i=0;i<n;i++){
-        cout<<i+1<<": ";
-        printDireto(lista[i]);
-    }
-}*/
-
-
 void BL(No **lista , int &inicio, int n, bool *flag, bool &continua){
     Fila *F = new Fila();
     IniciaFila(F);
@@ -189,7 +286,6 @@ void BL(No **lista , int &inicio, int n, bool *flag, bool &continua){
         }
     }
 }
-
 void BLdir(No **lista, int inicio, int n){
     bool continua = true;
     bool flag[n];
@@ -200,7 +296,6 @@ void BLdir(No **lista, int inicio, int n){
         BL(lista,inicio,n,flag,continua);
     }
 }
-
 void acertaNivel(No **lista, int n){
     bool continuar = true;
     while(continuar){
@@ -251,7 +346,6 @@ void quickSort(int *seq, int *niv, int p, int r){
 
     }
 }
-
 void criaSequencia(No **lista, int n, int *seq, int *nivel){
     for(int i=0;i<n;i++){
         seq[i]=i;
@@ -292,7 +386,6 @@ void BP(No **lista , int &inicio, int n,bool *flag, bool &continua, int *resp, i
         }
     }
 }
-
 void BPdir(No **lista, int inicio, int n,int *resp){
     bool continua = true;
     bool flag[n];
@@ -310,50 +403,34 @@ void BPdir(No **lista, int inicio, int n,int *resp){
 
 int main()
 {
-    int n;
+    cout<<"Gerando grafo..."<<endl;
+    int n=geraDAG();
     No **lista;
-  //  iniciar(n,lista);
-    cout<<"n"<<endl;
-    cin>>n;
-    lista= new No*[n];
 
-    for(int i=0;i<n;i++){
-        lista[i] = new No();
-        lista[i]->chave = i;
-        lista[i]->next = lista[i];
-    }
-    int ent1, ent2;
-    cout<<"pra sair, insira -1 em V1 ou V2"<<endl;
-    while(1){
-        cout<<"Vertice 1 e 2"<<endl;
-        cin>>ent1>>ent2;
-        if(ent1 == -1 || ent2 == -1){
-            break;
-        }
-        inserir(lista[ent1],ent2);
-    }
+    ifstream grafo;
+
+    lista = ler_dot(grafo,n);
+
     cout<<endl<<"Grafo armazenado em lista : "<<endl;
     for(int i=0;i<n;i++){
-        cout<<i<<": ";
         printDireto(lista[i]);
     }
+
     cout<<endl;
     int vertice=0;
     int resp[n];
     int nivel[n];
 
     BLdir(lista,vertice,n);
-    cout<<endl<<"Após colocar níveis iniciais"<<endl;
+    cout<<endl<<"Apos colocar niveis iniciais"<<endl;
     for(int i=0;i<n;i++){
-        cout<<i<<": ";
         printDireto(lista[i]);
     }
 
     acertaNivel(lista,n);
 
-    cout<<endl<<"Após acertar os niveis corretos"<<endl;
+    cout<<endl<<"Apos acertar os niveis corretos"<<endl;
     for(int i=0;i<n;i++){
-        cout<<i<<": ";
         printDireto(lista[i]);
     }
 
@@ -364,6 +441,9 @@ int main()
         cout<<resp[i]<<" ";
     }
     cout<<endl;
-
+    cout<<"Niveis"<<endl;
+    for(int i=0;i<n;i++){
+        cout<<nivel[i]<<" ";
+    }
     return 0;
 }
