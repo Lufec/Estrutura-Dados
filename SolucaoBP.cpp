@@ -6,12 +6,12 @@
 #include <vector>
 #include <sstream>
 
-#define MAXV 100		//numero maximo de vertices
+#define MAXV 65000		//numero maximo de vertices
 //Modifique os valores abaixo para obter um grafo necessario
-#define PERCENT 20		//chance de aparecer aresta. diminuir pra grid
-#define MIN_NIVEIS 5
-#define MAX_NIVEIS 10
-#define MIN_POR_NIVEL 5 // Nos/nivel. O 'volume' do grafo.
+#define PERCENT 5		//chance de aparecer aresta. diminuir pra grid
+#define MIN_NIVEIS 100
+#define MAX_NIVEIS 100
+#define MIN_POR_NIVEL 10 // Nos/nivel. O 'volume' do grafo.
 #define MAX_POR_NIVEL 10
 
 using namespace std;
@@ -19,8 +19,6 @@ using namespace std;
 typedef struct No
 {
   int chave;
-  bool visita = 0;
-  char nivel = 0;
   struct No *next;
 } TipoNo;
 
@@ -111,6 +109,10 @@ void inserir(No *cabeca, int novoVaor){
         return;
     }
     No *novoNo = new No();
+    if(novoNo == nullptr){
+        cout<<"No nao criado"<<endl;
+        exit(3);
+    }
     if (novoNo!=nullptr){
         novoNo->chave = novoVaor;
         novoNo->next = cabeca;
@@ -119,10 +121,10 @@ void inserir(No *cabeca, int novoVaor){
 }
 
 void printDireto(No *cabeca){
-    cout<<cabeca->chave<<"n"<<(int)cabeca->nivel<<" :";
+    cout<<cabeca->chave<<" :";
     No *aux = cabeca->next;
     while (aux!=cabeca){
-        cout<<aux->chave<<"n"<<(int)aux->nivel<<"->";
+        cout<<aux->chave<<"->";
         aux = aux->next;
     }
     cout<<endl;
@@ -170,7 +172,7 @@ int geraDAG() {
     //O arquivo .gv pode ser graficamente exibido no site: webgraphviz.com
     //O arquivo eh gravado em DOT: en.wikipedia.org/wiki/DOT_(graph_description_language)
 
-    outfg.open("C:/Users/lu_fe/Downloads/OneDrive/Materias/Estrutura dados/Trab/trab/graphVisu.txt");
+    outfg.open("C:/Users/lu_fe/Downloads/OneDrive/Materias/Estrutura dados/Trab/trab/graph10000.txt");
 
     int niveis = getRandomNumber(MIN_NIVEIS, MAX_NIVEIS);
     outfg << "digraph {\n";
@@ -200,14 +202,21 @@ int geraDAG() {
 
 No** ler_dot(std::ifstream& grafo, int vertices){
     No **lista= new No*[vertices];
-
+    if(lista == nullptr){
+        cout<<"Grafo nao criado"<<endl;
+        exit(1);
+    }
     for(int i=0;i<vertices;i++){
         lista[i] = new No();
+        if(lista[i] == nullptr){
+            cout<<"lista "<<i<<" nao criada"<<endl;
+            exit(2);
+        }
         lista[i]->chave = i;
         lista[i]->next = lista[i];
     }
 
-    grafo.open("C:/Users/lu_fe/Downloads/OneDrive/Materias/Estrutura dados/Trab/trab/graphVisu.txt");
+    grafo.open("C:/Users/lu_fe/Downloads/OneDrive/Materias/Estrutura dados/Trab/trab/graph10000.txt");
 
     if(!grafo)
     {
@@ -218,13 +227,21 @@ No** ler_dot(std::ifstream& grafo, int vertices){
     //2
     vector<string> linhas;
     string linha;
-
+    getline(grafo,linha);
     while(getline(grafo,linha))
     {
         linhas.push_back(linha);
+        stringstream tipo(linhas[0]);
+        string lixo;
+        char lixo2;
+        int x,y;
+        tipo >> x >> lixo >>y >>lixo2;
+        cout<<x<<" "<<y<<endl;
+        inserir(lista[x],y);
+        linhas.erase(linhas.begin());
     }
-
-    for(int i=1; i<static_cast<int>(linhas.size()-1);i++){
+   /* linhas.erase(linhas.begin());
+    for(int i=0; i<static_cast<int>(linhas.size()-1);i++){
         stringstream tipo(linhas[i]);
         string lixo;
         char lixo2;
@@ -232,42 +249,39 @@ No** ler_dot(std::ifstream& grafo, int vertices){
         tipo >> x >> lixo >>y >>lixo2;
         cout<<x<<" "<<y<<endl;
         inserir(lista[x],y);
+        linhas.erase(linhas.begin());
     }
-
+*/
     grafo.close();
     return lista;
 };
 
-void BP(No **lista , int &inicio, int n,bool *flag, bool &continua, int *resp, int &it, int nivel){
+void BP(No **lista , int &inicio, int n,bool *flag, bool &continua, int *resp, int *niv, int &it, int nivel){
     flag[inicio]=1;
     resp[it] = inicio;
     it++;
-
+    if(it == n){
+        return;
+    }
     No *aux = lista[inicio]->next;
     while(aux!=lista[inicio]){
         int w = aux->chave;
         if(!flag[w]){
-            cout<<lista[inicio]->chave<<"-"<<w<<", I"<<endl;
-
-            resp[it]=w;
-            it++;
-
-            lista[w]->nivel = lista[inicio]->nivel+1;
-            aux->nivel = lista[inicio]->nivel+1;
+            cout<<lista[inicio]->chave<<"->"<<w<<", I"<<endl;
+            if(!flag[lista[inicio]->chave]){
+                resp[it]=w;
+                it++;
+                if(it == n){
+                    return;
+                }
+            }
+            niv[w] = niv[inicio]+1;
 
             flag[w]=1;
-            aux->visita=1;
 
             nivel++;
-            BP(lista,w,n,flag,continua,resp, it,nivel);
+            BP(lista,w,n,flag,continua,resp,niv,it,nivel);
             nivel--;
-        }
-        else{
-            if(aux->visita == 0){
-                cout<<lista[inicio]->chave<<"-"<<w<<", II"<<endl;
-                aux->visita = 1;
-                aux->nivel = lista[w]->nivel+1  ;
-            }
         }
         aux=aux->next;
     }
@@ -281,7 +295,7 @@ void BP(No **lista , int &inicio, int n,bool *flag, bool &continua, int *resp, i
     }
 }
 
-void BPdir(No **lista, int inicio, int n,int *resp){
+void BPdir(No **lista, int inicio, int n,int *resp,int *niv){
     bool continua = true;
     bool flag[n];
     int it=0;
@@ -292,31 +306,33 @@ void BPdir(No **lista, int inicio, int n,int *resp){
 
     while(continua){
         int nivel = 0;
-        BP(lista,inicio,n,flag,continua,resp,it,nivel);
+        BP(lista,inicio,n,flag,continua,resp,niv,it,nivel);
+        if(it == n){
+            return;
+        }
     }
 }
 
-void quickSort(int *seq, char *niv, int p, int r){
+void quickSort(int *seq, int *niv, int p, int r){
     if (p<r){
-        int temp1;
-        char temp;
+        int temp;
         int x=niv[r];
         int i=p-1;
         for(int j=p;j<r;j++){
             if(niv[j]<x){
                 i++;
-                temp1=seq[i];
+                temp=seq[i];
                 seq[i]=seq[j];
-                seq[j]=temp1;
+                seq[j]=temp;
 
                 temp=niv[i];
                 niv[i]=niv[j];
                 niv[j]=temp;
             }
         }
-        temp1=seq[i+1];
+        temp=seq[i+1];
         seq[i+1]=seq[r];
-        seq[r]=temp1;
+        seq[r]=temp;
 
         temp=niv[i+1];
         niv[i+1]=niv[r];
@@ -328,16 +344,14 @@ void quickSort(int *seq, char *niv, int p, int r){
 
     }
 }
-void criaSequencia(No **lista, int n, int *seq, char *nivel){
+void criaSequencia(int n, int *resp, int *nivel1, int *nivel2){
     for(int i=0;i<n;i++){
-        seq[i]=i;
-        nivel[i] = lista[i]->nivel;
+        nivel2[i] = nivel1[resp[i]];
     }
-
-    quickSort(seq,nivel,0,n);
+    cout<<"Criou nivel"<<endl;
+    //quickSort(resp,nivel2,0,n-1);
 
 }
-
 
 int main()
 {
@@ -345,24 +359,36 @@ int main()
        <<endl<<"Max Niveis = "<<MAX_NIVEIS<<endl<<"Min por nivel = "<<MIN_POR_NIVEL
       <<endl<<"Max por nivel = "<<MAX_POR_NIVEL<<endl;
     int n=geraDAG();
+    //int n=10000;
     No **lista;
 
     ifstream grafo;
-
+    cout<<"Lendo arquivo"<<endl;
     lista = ler_dot(grafo,n);
 
-    cout<<endl<<"Grafo armazenado em lista : "<<endl;
+   /* cout<<endl<<"Grafo armazenado em lista : "<<endl;
     for(int i=0;i<n;i++){
         printDireto(lista[i]);
-    }
+    }*/
 
     int vertice=0;
     int resp[n];
-    char nivel[n];
+    int nivel1[n];
+    int nivel2[n];
+    for(int i=0;i<n;i++){
+        nivel1[i]=0;
+    }
 
-    BPdir(lista,vertice,n,resp);
+    cout<<"Executando BP"<<endl;
+    BPdir(lista,vertice,n,resp,nivel1);
 
-    criaSequencia(lista,n,resp,nivel);
+    //cout<<"Pos BP"<<endl;
+    /*for(int i=0;i<n;i++){
+        printDireto(lista[i]);
+    }*/
+    cout<<endl;
+    cout<<"Executando criacao de sequencia"<<endl;
+    criaSequencia(n,resp,nivel1,nivel2);
 
     cout<<"Lista Final"<<endl;
     cout<<endl;
@@ -376,9 +402,13 @@ int main()
     }
     cout<<endl;
 
-    cout<<"Nivel"<<endl;
+    cout<<"Nivel 1 a n"<<endl;
     for(int i=0;i<n;i++){
-        cout<<(int)nivel[i]<<" ";
+        cout<<nivel1[i]<<" ";
+    }
+    cout<<"Nivel ordem da resposta"<<endl;
+    for(int i=0;i<n;i++){
+        cout<<nivel2[i]<<" ";
     }
     cout<<endl<<"Processo encerrado"<<endl;
 

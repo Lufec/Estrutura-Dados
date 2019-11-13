@@ -6,13 +6,13 @@
 #include <sstream>
 #include <vector>
 
-#define MAXV 100		//numero maximo de vertices
+#define MAXV 65000		//numero maximo de vertices
 //Modifique os valores abaixo para obter um grafo necessario
-#define PERCENT 20		//chance de aparecer aresta. diminuir pra grid
-#define MIN_NIVEIS 1
-#define MAX_NIVEIS 10
-#define MIN_POR_NIVEL 5 // Nos/nivel. O 'volume' do grafo.
-#define MAX_POR_NIVEL 10
+#define PERCENT 5		//chance de aparecer aresta. diminuir pra grid
+#define MIN_NIVEIS 40
+#define MAX_NIVEIS 40
+#define MIN_POR_NIVEL 40 // Nos/nivel. O 'volume' do grafo.
+#define MAX_POR_NIVEL 40
 
 using namespace std;
 
@@ -188,8 +188,8 @@ No** ler_dot(std::ifstream &grafo, int vertices){
     {
         linhas.push_back(linha);
     }
-
-    for(int i=1; i<static_cast<int>(linhas.size()-1);i++){
+    linhas.erase(linhas.begin());
+    for(int i=0; i<static_cast<int>(linhas.size());i++){
         stringstream tipo(linhas[i]);
         string lixo;
         char lixo2;
@@ -197,6 +197,7 @@ No** ler_dot(std::ifstream &grafo, int vertices){
         tipo >> x >> lixo >>y >>lixo2;
         cout<<x<<" "<<y<<endl;
         inserir(lista[x],y);
+        linhas.erase(linhas.begin());
     }
 
     grafo.close();
@@ -316,7 +317,7 @@ void acertaNivel(No **lista, int n){
     }
 }
 void quickSort(int *seq, int *niv, int p, int r){
-    if (p<r){
+    if (p<=r){
         int temp;
         int x=niv[r];
         int i=p-1;
