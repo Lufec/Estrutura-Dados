@@ -5,9 +5,12 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <chrono>
 #include <windows.h>
 
 using namespace std;
+
+//using namespace std::chrono; // USAR SOMENTE SE O SISTEMA OPERACIONAL NÃO FOR WINDOWS
 
 //////////////////Definição de parâmetros////////////
 #define MAXV 100000  		//numero maximo de vertices
@@ -116,7 +119,7 @@ int getRandomNumber(int min,int max)
 
 /////////////////Criação dos Grafos///////////
 
-//Essa Função irá criar um grafo baseado nos parâmetros em DEFINE. Este Grafo irá ser criado em um arquivo .txt
+//Essa Função irá armazenar o grafo criado pelos parâmetros em DEFINE. Ele será armazenado em um arquivo .txt
 void ArmazenaGrafo(string path,No **lista, int vertices) {
     int i;
     std::ofstream outfg;
@@ -140,6 +143,9 @@ void ArmazenaGrafo(string path,No **lista, int vertices) {
     cout<<"Grafo armazenado em "<<path<<endl;
 }
 
+////Algoritmo gerador de Grid
+//Procedimento: Cria os nós em uma linha, liga-os da esquerda pra direita
+//Repete o procedimento para uma nova linha, une-se a linha de cima com a de baixo para fechar os quadrados
 int geraGrid(int l, int c, No **lista) {
     for(int i=0;i<c-1;i++){
         inserir(lista[i],i+1);
@@ -157,6 +163,10 @@ int geraGrid(int l, int c, No **lista) {
     return nos;
 }
 
+
+////Algoritmo gerador de grafos dados os parametros em DEFINE.
+////Grafos gerados por essa função podem ser aleatórios ou não.
+//Para não serem, basta igualar os valores de minimos e máximos. Isso garante a quantidade de vértices.
 int geraGrafo(No** lista) {
     int i, j, k, nos = 0;
     int niveis = getRandomNumber(MIN_NIVEIS, MAX_NIVEIS);
@@ -175,6 +185,7 @@ int geraGrafo(No** lista) {
     return nos;
 }
 
+////função responsável pela criação e armazenamento da lista de adjacência
 No **iniciaLista(int vertices){
     No **lista= new No*[vertices];
     if(lista == nullptr){
@@ -193,6 +204,7 @@ No **iniciaLista(int vertices){
     return lista;
 }
 
+////Caso deseje ler um grafo já escrito em .txt, basta chamar essa função
 No** ler_grafo(std::ifstream& grafo,string path,int vertices){
 
     No **lista = iniciaLista(vertices);
@@ -283,35 +295,40 @@ std::string print_seg(bit_DNA seg) {
 }
 
 ///////////////////////Algoritmo de Resolução//////////////////////
+//Primeiro: Busca em profundidade
+//Mudanças principais: Não há visitas do tipo II (desnecessário para resolver o problema)
+//Se todos os vértices forem visitados, a função é encerrada
 void BP(No **lista ,   int &inicio,   int n,bool *flag, bool &continua,   int *resp,   int *niv,   int &it,  int nivel){
-    flag[inicio]=1;
-    resp[it] = inicio;
+    flag[inicio]=1;  //vértice inicial é visitado
+    resp[it] = inicio; //seu valor é armazenado
     it++;
-    if(it == n){
+    if(it == n){ //condicional que confere se todos os vértices foram visitados
         return;
     }
-    No *aux = lista[inicio]->next;
-    while(aux!=lista[inicio]){
-          int w = aux->chave;
-        if(!flag[w]){
+    No *aux = lista[inicio]->next; //Inicia as visitas das arestas do vértice
+    while(aux!=lista[inicio]){ //enquanto houver arestas no vértice
+        int w = aux->chave;
+        if(!flag[w]){          //Se vértice não foi visitado
             //cout<<lista[inicio]->chave<<"->"<<w<<", I"<<endl;
-            if(!flag[lista[inicio]->chave]){
-                resp[it]=w;
+            if(!flag[lista[inicio]->chave]){ // condicional necessária para execução correta do algoritmo
+                resp[it]=w;                  // Armazena valor de chegada
                 it++;
-                if(it == n){
+                if(it == n){                //se todos os vértices foram visitados, retorne
                     return;
                 }
             }
-            niv[w] = niv[inicio]+1;
+            niv[w] = niv[inicio]+1;  //armazena valor do nível do vértice armazenado em um vetor
 
-            flag[w]=1;
+            flag[w]=1;                //visita vértice
 
-            nivel++;
-            BP(lista,w,n,flag,continua,resp,niv,it,nivel);
-            nivel--;
+            nivel++;                  //soma mais um em nível para o próximo vértice chamado receber seu valor
+            BP(lista,w,n,flag,continua,resp,niv,it,nivel); //chamada iterativa para o próximo vértice
+            nivel--;                  //Quando voltar da chamada iterativa, volta o valor original do nível
         }
         aux=aux->next;
     }
+
+    //condição de continuação, caso haja vértices não visitados
     continua=false;
     for(  int i=0;i<n;i++){
         if(flag[i]==0){
@@ -322,6 +339,8 @@ void BP(No **lista ,   int &inicio,   int n,bool *flag, bool &continua,   int *r
     }
 }
 
+
+////Semelhante à busca em profundidade direcionada padrão, com os acréscimos necessários, como flag e nível
 void BPdir(No **lista,   int inicio,   int n,  int *resp,  int *niv){
     bool continua = true;
     bool flag[n];
@@ -339,7 +358,7 @@ void BPdir(No **lista,   int inicio,   int n,  int *resp,  int *niv){
         }
     }
 }
-
+//Algoritmo de ordenação por comparação. Escolheu-se Quicksort devido sua complexidade O(nlog(n))
 void quickSort(  int *seq,   int *niv,   int p,  int r){
     if (p<r){
           int temp;
@@ -371,6 +390,9 @@ void quickSort(  int *seq,   int *niv,   int p,  int r){
 
     }
 }
+
+//PROCEDIMENTO 2: Ordenação do vetor resposta dado parametros de nível.
+//Primeira parte irá gerar um vetor de nivel2 que irá garantir a paridade correta entre a resposta encontrada e o nível do respectivo vértice de mesmo índice
 void criaSequencia(  int n,  int *resp,  int *nivel1,  int *nivel2){
     for(  int i=0;i<n;i++){
         nivel2[i] = nivel1[resp[i]];
@@ -391,10 +413,13 @@ double AlgoritmoProfundidade(No **lista, int n){
     cout<<"Executando BP"<<endl;
 
     StartCounter();
+    //SE O SISTEMA OPERACIONAL NÃO FOR WINDOWS
+    //auto begin = std::chrono::high_resolution_clock::now();
     BPdir(lista,vertice,n,resp,nivel1);
     criaSequencia(n,resp,nivel1,nivel2);
     double duration = GetCounter();
-
+    //auto end = std::chrono::high_resolution_clock::now();// Se não estiver usando windows
+    //auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count(); // Se não estiver usando windows
     cout<<endl<<"Resposta em Numero"<<endl;
     for(int i=0;i<n;i++){
         cout<<resp[i]<<" ";

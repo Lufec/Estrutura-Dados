@@ -16,6 +16,7 @@
 #define MAX_POR_NIVEL 50
 
 using namespace std;
+//using namespace std::chrono; // USAR SOMENTE SE O SISTEMA OPERACIONAL NÃO FOR WINDOWS
 
 ////////////////Contagem de tempo///////
 double PCFreq = 0.0;
@@ -303,7 +304,7 @@ uint64_t = 1.84E19 permts
 */
 
 
-//esta parte converte um número inteiro para um genoma de DNA baseado em seu número binário
+//Esta parte converte um número inteiro para um genoma de DNA baseado em seu número binário
 std::string print_seg(bit_DNA seg) {
 
     int len = (sizeof(bit_DNA)*8)/2;
@@ -338,35 +339,43 @@ std::string print_seg(bit_DNA seg) {
 
 
 ////////////////Resolução do Problema//////////
+//O algoritmo abaixo é uma busca em largura direcionada padrão.
+//Todo momento de visita é caracterizado por:
+//->Enfileirar todos os vértices ligados ao vértice visitado
+//->Colocar o valor de nível do vértice de chegada o valor de nível do de origem +1
+//->Marca a visita no vértice de origem
+//->Marca a aresta como visitada
 void BL(No **lista , int &inicio, int n, bool *flag, bool &continua){
     Fila *F = new Fila();
     IniciaFila(F);
-    flag[inicio] = 1;
-    Enfileira(inicio,F);
+    flag[inicio] = 1;  //Marca vértice inicial
+    Enfileira(inicio,F); //Enfileira-o
     while(!filaVazia(F)){
-        int v = Desenfileira(F);
+        int v = Desenfileira(F); //Começa a análise do vértice recém desenfileirado
         No *vert = lista[v]->next;
         while(vert!=lista[v]){
-            int w=vert->chave;
+            int w=vert->chave; //w é o valor da aresta de chegada
             if(!flag[w]){
                 //cout<<lista[v]->chave<<"-"<<w<<", I"<<endl;
-                lista[w]->nivel = lista[v]->nivel +1;
-                vert->nivel = lista[v]->nivel +1;
+                lista[w]->nivel = lista[v]->nivel +1; //Modifica o nível do vértice de chegada
+                vert->nivel = lista[v]->nivel +1; //Mesmo procedimento para manter o valor do nível do vértice na aresta
                 Enfileira(w,F);
-                flag[w]=1;
-                vert->visita=1;
+                flag[w]=1;  //marca visita
+                vert->visita=1; //marca aresta
             }
             else{
-                if(vert->visita == 0){
+                if(vert->visita == 0){  //se o vértice foi visitado, mas aresta não
                     //cout<<lista[v]->chave<<"-"<<w<<", II"<<endl;
-                    lista[w]->nivel = lista[v]->nivel + 1;
-                    vert->nivel = lista[v]->nivel +1;
-                    vert->visita=1;
+                    lista[w]->nivel = lista[v]->nivel + 1;  //Coloca valor do nível de chegada
+                    vert->nivel = lista[v]->nivel +1;       //Mesmo procedimento
+                    vert->visita=1;                         //visita
                }
             }
             vert=vert->next;
         }
     }
+
+    //Procedimento abaixo confere se há vértices não visitados
     continua=false;
     for(int i=0;i<n;i++){
         if(flag[i]==0){
@@ -377,7 +386,7 @@ void BL(No **lista , int &inicio, int n, bool *flag, bool &continua){
     }
 }
 void BLdir(No **lista, int inicio, int n){
-    bool continua = true;
+    bool continua = true; //condição de parada determinada pela visita a todos os vértices
     bool flag[n];
     for(int i=0;i<n;i++){
         flag[i] = 0;
@@ -386,15 +395,21 @@ void BLdir(No **lista, int inicio, int n){
         BL(lista,inicio,n,flag,continua);
     }
 }
+
+//PROCEDIMENTO 2 -> Corrigir níveis
+//Na etapa anterior, as visitas do tipo 2 que ocorriam causavam uma mudança no nível já visitado. É necessário
+// corrigir o problema do vértice de origem possuir um nível superior ao vértice de chegada
+//Enquanto houver trocas ocorrendo, é preciso varrer o grafo inteiro novamente.
+//Será garantido a corretude dos níveis dos vértices quando não houver mudanças de níveis após uma passada completa no grafo
 void acertaNivel(No **lista, int n){
-    bool continuar = true;
+    bool continuar = true; //Condição que determina se houve troca de nível no grafo
     while(continuar){
         continuar = false;
-        for(int i=0;i<n;i++){
+        for(int i=0;i<n;i++){ //Visita todos os vértices
             No *aux =lista[i]->next;
             int nivelAtual = lista[i]->nivel;
-            while(aux!=lista[i]){
-                if(nivelAtual>aux->nivel){
+            while(aux!=lista[i]){ //visita todas as arestas dos vértices
+                if(nivelAtual>aux->nivel){ //confere se há niveis incoerentes
                     aux->nivel = nivelAtual+1;
                     lista[aux->chave]->nivel = nivelAtual + 1;
                     continuar = true;
@@ -405,6 +420,10 @@ void acertaNivel(No **lista, int n){
         }
     }
 }
+
+// Algoritmo de Sorting. Escolheu-se o quickSort devido seu  caso médio de complexidade ser o mais baixo
+//possivel para algoritmos de comparação (O(nlog(n)));
+//Há uma modificação em que ocorre troca em dois vetores dado que a condição de troca é só em um deles.
 void quickSort(int *seq, int *niv, int p, int r){
     if (p<=r){
         int temp;
@@ -436,6 +455,9 @@ void quickSort(int *seq, int *niv, int p, int r){
 
     }
 }
+
+/////////PROCEDIMENTO 3
+//Uma vez corrigido os níveis do grafo, basta pegar os vértices e seus respectivos níveis e ordená-los com base nos níveis.
 void criaSequencia(No **lista, int n, int *seq, int *nivel){
     for(int i=0;i<n;i++){
         seq[i]=i;
@@ -454,6 +476,9 @@ double AlgoritmoLargura(No **lista, int n){
     int nivel[n];
 
     StartCounter();
+
+    //SE O SISTEMA OPERACIONAL NÃO FOR WINDOWS, usar a biblioteca chrono
+    //auto begin = std::chrono::high_resolution_clock::now();
     BLdir(lista,vertice,n);
 
     acertaNivel(lista,n);
@@ -461,6 +486,8 @@ double AlgoritmoLargura(No **lista, int n){
     criaSequencia(lista,n,resp,nivel);
 
     double duration = GetCounter();
+    //auto end = std::chrono::high_resolution_clock::now();// Se não estiver usando windows
+    //auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end-begin).count(); // Se não estiver usando windows
 
     cout<<endl<<"Resposta em Numero"<<endl;
     for(int i=0;i<n;i++){
